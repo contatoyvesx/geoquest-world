@@ -50,6 +50,14 @@ export function StartScreen({ mode, continent, difficulty, onStart }: StartScree
           <span className="text-muted-foreground">10 perguntas</span>
         </div>
         <div className="flex items-center gap-2 text-sm">
+          <span className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[10px] text-primary">
+            ⇄
+          </span>
+          <span className="text-muted-foreground">
+            Perguntas mistas: capital e país/estado
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
           <span className="w-4 h-4 rounded-full bg-secondary flex items-center justify-center text-xs">
             {difficulty === "easy" ? "F" : difficulty === "medium" ? "M" : "D"}
           </span>

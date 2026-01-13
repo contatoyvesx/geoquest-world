@@ -68,12 +68,14 @@ const Index = () => {
 
             {game.isPlaying && game.currentQuestionData && (
               <QuestionCard
+                prompt={game.currentQuestionData.prompt}
                 question={game.currentQuestionData.question}
                 flag={game.currentQuestionData.flag}
                 correctAnswer={game.currentQuestionData.correctAnswer}
                 options={game.currentQuestionData.options}
                 selectedAnswer={game.selectedAnswer}
                 isCorrect={game.isCorrect}
+                scoreBreakdown={game.lastScore}
                 onAnswer={game.answerQuestion}
                 onNext={game.nextQuestion}
               />
@@ -103,6 +105,7 @@ const Index = () => {
         {game.isFinished && (
           <GameOverModal
             score={game.score}
+            correctAnswers={game.correctAnswers}
             mode={game.mode}
             continent={game.continent}
             difficulty={game.difficulty}

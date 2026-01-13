@@ -1,20 +1,24 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import {
-  Country,
-  BrazilianState,
-  getCountriesByContinent,
-  brazilianStates,
-} from "@/data/geography";
+import { getCountriesByContinent, brazilianStates } from "@/data/geography";
 
 export type GameMode = "world" | "brazil";
 export type Difficulty = "easy" | "medium" | "hard";
 export type Continent = "africa" | "america" | "asia" | "europe" | "oceania" | "all";
 
 interface GameQuestion {
+  prompt: string;
   question: string;
   correctAnswer: string;
   options: string[];
   flag?: string;
+}
+
+export interface ScoreBreakdown {
+  total: number;
+  base: number;
+  difficulty: number;
+  time: number;
+  streak: number;
 }
 
 interface GameState {
@@ -26,12 +30,14 @@ interface GameState {
   currentQuestion: number;
   totalQuestions: number;
   score: number;
+  correctAnswers: number;
   streak: number;
   questions: GameQuestion[];
   isPlaying: boolean;
   isFinished: boolean;
   selectedAnswer: string | null;
   isCorrect: boolean | null;
+  lastScore: ScoreBreakdown | null;
 }
 
 const QUESTIONS_PER_GAME = 10;
@@ -44,6 +50,11 @@ const TIME_PER_QUESTION: Record<Difficulty, number> = {
   easy: 15,
   medium: 10,
   hard: 7,
+};
+const DIFFICULTY_MULTIPLIER: Record<Difficulty, number> = {
+  easy: 1,
+  medium: 1.2,
+  hard: 1.4,
 };
 
 function shuffleArray<T>(array: T[]): T[] {
@@ -81,17 +92,25 @@ function generateQuestions(
   const shuffledItems = shuffleArray(items);
   const selectedItems = shuffledItems.slice(0, QUESTIONS_PER_GAME);
   const allAnswers = items.map((i) => i.answer);
+  const allQuestions = items.map((i) => i.question);
 
   return selectedItems.map((item) => {
+    const useReverse = Math.random() < 0.35;
+    const prompt = useReverse
+      ? mode === "world"
+        ? "Qual país tem a capital"
+        : "De qual estado é a capital"
+      : "Qual é a capital de";
+    const correctAnswer = useReverse ? item.question : item.answer;
+    const optionPool = useReverse ? allQuestions : allAnswers;
     const wrongAnswers = shuffleArray(
-      allAnswers.filter((a) => a !== item.answer)
+      optionPool.filter((a) => a !== correctAnswer)
     ).slice(0, numOptions - 1);
-
-    const options = shuffleArray([item.answer, ...wrongAnswers]);
-
+    const options = shuffleArray([correctAnswer, ...wrongAnswers]);
     return {
-      question: item.question,
-      correctAnswer: item.answer,
+      prompt,
+      question: useReverse ? item.answer : item.question,
+      correctAnswer,
       options,
       flag: item.flag,
     };
@@ -108,12 +127,14 @@ export function useGameState() {
     currentQuestion: 0,
     totalQuestions: QUESTIONS_PER_GAME,
     score: 0,
+    correctAnswers: 0,
     streak: 0,
     questions: [],
     isPlaying: false,
     isFinished: false,
     selectedAnswer: null,
     isCorrect: null,
+    lastScore: null,
   });
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -138,6 +159,13 @@ export function useGameState() {
             timeRemaining: 0,
             selectedAnswer: "",
             isCorrect: false,
+            lastScore: {
+              total: 0,
+              base: 0,
+              difficulty: 0,
+              time: 0,
+              streak: 0,
+            },
           };
         }
         return { ...prev, timeRemaining: prev.timeRemaining - 1 };
@@ -179,11 +207,13 @@ export function useGameState() {
       questions,
       currentQuestion: 0,
       score: 0,
+      correctAnswers: 0,
       streak: 0,
       isPlaying: true,
       isFinished: false,
       selectedAnswer: null,
       isCorrect: null,
+      lastScore: null,
       timeRemaining: TIME_PER_QUESTION[prev.difficulty],
     }));
   }, [state.mode, state.continent, state.difficulty]);
@@ -192,22 +222,38 @@ export function useGameState() {
     setState((prev) => {
       if (prev.selectedAnswer !== null) return prev;
 
-      const currentQ = prev.questions[prev.currentQuestion];
-      const isCorrect = answer === currentQ.correctAnswer;
+      const isCorrect = answer === prev.questions[prev.currentQuestion].correctAnswer;
       const newStreak = isCorrect ? prev.streak + 1 : 0;
-      const streakBonus = isCorrect && prev.streak >= 2 ? prev.streak * 10 : 0;
-      const basePoints = isCorrect ? 100 : 0;
+      const basePoints = 100;
+      const difficultyBonus = isCorrect
+        ? Math.round(basePoints * (DIFFICULTY_MULTIPLIER[prev.difficulty] - 1))
+        : 0;
       const timeBonus =
         isCorrect && prev.timerEnabled
-          ? Math.floor(prev.timeRemaining * 5)
+          ? Math.floor(
+              (prev.timeRemaining / TIME_PER_QUESTION[prev.difficulty]) * 50
+            )
           : 0;
+      const streakBonus =
+        isCorrect && newStreak > 1 ? Math.min(newStreak - 1, 4) * 15 : 0;
+      const totalPoints = isCorrect
+        ? basePoints + difficultyBonus + timeBonus + streakBonus
+        : 0;
 
       return {
         ...prev,
         selectedAnswer: answer,
         isCorrect,
-        score: prev.score + basePoints + streakBonus + timeBonus,
+        score: prev.score + totalPoints,
+        correctAnswers: prev.correctAnswers + (isCorrect ? 1 : 0),
         streak: newStreak,
+        lastScore: {
+          total: totalPoints,
+          base: isCorrect ? basePoints : 0,
+          difficulty: difficultyBonus,
+          time: timeBonus,
+          streak: streakBonus,
+        },
       };
     });
     clearTimer();
@@ -224,6 +270,7 @@ export function useGameState() {
         currentQuestion: nextIndex,
         selectedAnswer: null,
         isCorrect: null,
+        lastScore: null,
         timeRemaining: TIME_PER_QUESTION[prev.difficulty],
       };
     });
@@ -237,10 +284,12 @@ export function useGameState() {
       isFinished: false,
       currentQuestion: 0,
       score: 0,
+      correctAnswers: 0,
       streak: 0,
       questions: [],
       selectedAnswer: null,
       isCorrect: null,
+      lastScore: null,
     }));
   }, [clearTimer]);
 
