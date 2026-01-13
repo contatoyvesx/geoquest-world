@@ -1,27 +1,41 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ScoreBreakdown } from "@/hooks/useGameState";
 
 interface QuestionCardProps {
+  prompt: string;
   question: string;
   flag?: string;
   correctAnswer: string;
   options: string[];
   selectedAnswer: string | null;
   isCorrect: boolean | null;
+  scoreBreakdown: ScoreBreakdown | null;
   onAnswer: (answer: string) => void;
   onNext: () => void;
 }
 
 export function QuestionCard({
+  prompt,
   question,
   flag,
   correctAnswer,
   options,
   selectedAnswer,
   isCorrect,
+  scoreBreakdown,
   onAnswer,
   onNext,
 }: QuestionCardProps) {
   const [showNext, setShowNext] = useState(false);
+  const scoreDetails = useMemo(() => {
+    if (!scoreBreakdown || scoreBreakdown.total <= 0) return [];
+    return [
+      { label: "Base", value: scoreBreakdown.base },
+      { label: "Dificuldade", value: scoreBreakdown.difficulty },
+      { label: "Tempo", value: scoreBreakdown.time },
+      { label: "Sequência", value: scoreBreakdown.streak },
+    ].filter((item) => item.value > 0);
+  }, [scoreBreakdown]);
 
   useEffect(() => {
     if (selectedAnswer !== null) {
@@ -51,7 +65,7 @@ export function QuestionCard({
       <div className="text-center mb-8">
         <div className="floating-emoji text-6xl md:text-7xl mb-4">{flag}</div>
         <h2 className="font-display text-2xl md:text-3xl font-bold text-foreground">
-          Qual é a capital de
+          {prompt}
         </h2>
         <p className="font-display text-3xl md:text-4xl font-bold title-gradient mt-2">
           {question}?
@@ -78,12 +92,22 @@ export function QuestionCard({
         <div className="text-center animate-fade-in">
           {isCorrect ? (
             <p className="text-success text-xl font-semibold mb-4">
-              ✨ Correto! +100 pontos
+              ✨ Correto! +{scoreBreakdown?.total ?? 0} pontos
             </p>
           ) : (
             <p className="text-destructive text-xl font-semibold mb-4">
               ❌ A resposta correta era: <span className="text-foreground">{correctAnswer}</span>
             </p>
+          )}
+
+          {isCorrect && scoreDetails.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-2 mb-4 text-sm text-muted-foreground">
+              {scoreDetails.map((detail) => (
+                <span key={detail.label} className="glass-panel px-3 py-1">
+                  {detail.label} +{detail.value}
+                </span>
+              ))}
+            </div>
           )}
 
           {showNext && (

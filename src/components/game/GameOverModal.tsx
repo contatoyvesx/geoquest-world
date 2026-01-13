@@ -5,6 +5,7 @@ import { continentNames } from "@/data/geography";
 
 interface GameOverModalProps {
   score: number;
+  correctAnswers: number;
   mode: GameMode;
   continent: Continent;
   difficulty: Difficulty;
@@ -16,6 +17,7 @@ interface GameOverModalProps {
 
 export function GameOverModal({
   score,
+  correctAnswers,
   mode,
   continent,
   difficulty,
@@ -26,15 +28,14 @@ export function GameOverModal({
 }: GameOverModalProps) {
   useEffect(() => {
     onSaveScore();
-  }, []);
+  }, [onSaveScore]);
 
-  const maxPossibleScore = totalQuestions * 100 + 50 * 10; // Base + max streak bonus
-  const percentage = Math.round((score / maxPossibleScore) * 100);
+  const accuracy = Math.round((correctAnswers / totalQuestions) * 100);
 
   const getMessage = () => {
-    if (percentage >= 90) return { emoji: "🏆", text: "Incrível!" };
-    if (percentage >= 70) return { emoji: "🌟", text: "Muito bem!" };
-    if (percentage >= 50) return { emoji: "👏", text: "Bom trabalho!" };
+    if (accuracy >= 90) return { emoji: "🏆", text: "Incrível!" };
+    if (accuracy >= 70) return { emoji: "🌟", text: "Muito bem!" };
+    if (accuracy >= 50) return { emoji: "👏", text: "Bom trabalho!" };
     return { emoji: "💪", text: "Continue praticando!" };
   };
 
@@ -70,12 +71,18 @@ export function GameOverModal({
               <Star
                 key={i}
                 className={`h-6 w-6 ${
-                  i < Math.ceil(percentage / 20)
+                  i < Math.ceil(accuracy / 20)
                     ? "text-accent fill-accent"
                     : "text-muted"
                 }`}
               />
             ))}
+          </div>
+          <div className="mt-4 flex flex-wrap justify-center gap-2 text-sm text-muted-foreground">
+            <span className="glass-panel px-3 py-1">
+              Acertos {correctAnswers}/{totalQuestions}
+            </span>
+            <span className="glass-panel px-3 py-1">Precisão {accuracy}%</span>
           </div>
         </div>
 
